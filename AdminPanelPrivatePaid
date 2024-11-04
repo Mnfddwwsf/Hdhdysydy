@@ -1,0 +1,433 @@
+local player = game.Players.LocalPlayer
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Window = OrionLib:MakeWindow({
+    Name = "Admin Panel V2.4.5",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "OrionTest"
+})
+
+local TabMain = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local TabTableMenu = Window:MakeTab({
+    Name = "TableMenu",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local SectionMain = TabMain:AddSection({
+    Name = "Main"
+})
+
+local SectionTableMenu = TabTableMenu:AddSection({
+    Name = "Tables"
+})
+
+OrionLib:MakeNotification({
+    Name = "Welcome!",
+    Content = "Welcome to my hub!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
+
+local userNameInput
+local moneyAmountInput = 1000  -- Set default value
+local rebirthAmountInput = 1    -- Set default rebirths
+local isFlying = false
+local followPlayer = nil
+local espEnabled = false
+local hitboxEnabled = false
+
+local function updateUsernames()
+    local Players = game:GetService("Players")
+    local usernames = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        table.insert(usernames, p.Name)
+    end
+    return usernames
+end
+
+-- Dapatkan senarai nama pengguna
+local usernames = updateUsernames()
+
+-- Tambahkan dropdown untuk memilih nama pengguna
+local dropdown = TabMain:AddDropdown({
+    Name = "Select User Name",
+    Default = usernames[1],  -- Set default kepada nama pengguna pertama
+    Options = usernames,      -- Senarai nama pengguna
+    Callback = function(value)
+        userNameInput = value
+    end
+})
+
+-- Butang untuk menyegarkan senarai nama pengguna
+TabMain:AddButton({
+    Name = "Refresh User List",
+    Callback = function()
+        usernames = updateUsernames()
+        dropdown:UpdateOptions(usernames)  -- Kemas kini pilihan dropdown
+    end
+})
+
+-- Tambahkan dropdown untuk memilih jumlah wang
+TabMain:AddDropdown({
+    Name = "Select Money Amount",
+    Default = "1k",
+    Options = {
+        "1k", "10k", "100k", "1M", "10M", "100M", "1B"
+    },
+    Callback = function(value)
+        if value == "1k" then
+            moneyAmountInput = 1000
+        elseif value == "10k" then
+            moneyAmountInput = 10000
+        elseif value == "100k" then
+            moneyAmountInput = 100000
+        elseif value == "1M" then
+            moneyAmountInput = 1000000
+        elseif value == "10M" then
+            moneyAmountInput = 10000000
+        elseif value == "100M" then
+            moneyAmountInput = 100000000
+        elseif value == "1B" then
+            moneyAmountInput = 1000000000
+        end
+    end
+})
+
+-- Tambahkan dropdown untuk memilih jumlah rebirths
+TabMain:AddDropdown({
+    Name = "Select Rebirths Amount",
+    Default = "1",
+    Options = {
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
+    },
+    Callback = function(value)
+        rebirthAmountInput = tonumber(value)  -- Simpan jumlah rebirth yang dipilih
+    end
+})
+
+-- Butang untuk menghantar rebirths
+TabMain:AddButton({
+    Name = "Send Rebirths",
+    Callback = function()
+        for i = 1, rebirthAmountInput do
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Rebirth"):FireServer()
+        end
+    end
+})
+
+local isSending = false
+
+-- Add a toggle to start/stop sending money
+TabMain:AddToggle({
+    Name = "Start/Stop Sending Money",
+    Default = false,
+    Callback = function(state)
+        isSending = state
+        if isSending then
+            _G.auto = true
+            while _G.auto do
+                local args = {
+                    [1] = "Money",
+                    [2] = workspace:WaitForChild("Restaurants"):WaitForChild(userNameInput):WaitForChild("Addments"):WaitForChild("Chairs"):WaitForChild("1-1"),
+                    [3] = moneyAmountInput or 1000
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Clients"):FireServer(unpack(args))
+                wait(3)
+                if not isSending then break end
+            end
+        else
+            _G.auto = false
+        end
+    end
+})
+
+-- Tambahkan butang untuk setiap meja dalam tab TableMenu
+for i = 1, 8 do
+    TabTableMenu:AddButton({
+        Name = "Send Money to Table " .. i,
+        Callback = function()
+            local args = {
+                [1] = "Money",
+                [2] = workspace:WaitForChild("Restaurants"):WaitForChild(userNameInput):WaitForChild("Addments"):WaitForChild("Chairs"):WaitForChild("1-" .. i),
+                [3] = moneyAmountInput or 1000  -- Gantikan 1000 dengan nilai yang anda pilih
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Clients"):FireServer(unpack(args))
+        end
+    })
+end
+
+-- Fungsi untuk mengaktifkan atau mematikan Invis FE
+local function toggleInvis()
+    local character = player.Character
+    if character then
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Transparency = part.Transparency == 0 and 1 or 0  -- Toggle transparency
+            end
+        end
+    end
+end
+
+-- Butang untuk mengaktifkan atau mematikan Invis FE
+TabMain:AddButton({
+    Name = "Toggle Invis FE",
+    Callback = function()
+        toggleInvis()
+    end
+})
+
+-- Fungsi untuk terbang
+local function fly()
+    isFlying = not isFlying
+    local character = player.Character
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if isFlying then
+        humanoidRootPart.Anchored = true
+        while isFlying do
+            humanoidRootPart.Position = humanoidRootPart.Position + Vector3.new(0, 1, 0) -- Terbang ke atas
+            wait(0.1)
+        end
+        humanoidRootPart.Anchored = false
+    end
+end
+
+-- Butang untuk terbang
+TabMain:AddButton({
+    Name = "Toggle Fly",
+    Callback = function()
+        fly()
+    end
+})
+
+-- Arahan untuk mengaktifkan dan mematikan terbang
+game.Players.LocalPlayer.Chatted:Connect(function(message)
+    if message:lower() == ";fly" then
+        fly()
+    elseif message:lower() == ";unfly" then
+        isFlying = false
+        local character = player.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                humanoidRootPart.Anchored = false  -- Matikan anchoring
+            end
+        end
+    end
+end)
+
+-- Tambahkan dropdown untuk memilih pemain untuk teleport
+TabMain:AddDropdown({
+    Name = "Select Player to Teleport",
+    Default = usernames[1],  -- Set default kepada nama pengguna pertama
+    Options = usernames,      -- Senarai nama pengguna
+    Callback = function(value)
+        userNameInput = value
+    end
+})
+
+-- Butang untuk teleport ke pemain yang dipilih
+TabMain:AddButton({
+    Name = "Teleport to Player",
+    Callback = function()
+        local targetPlayer = game.Players:FindFirstChild(userNameInput)
+        if targetPlayer and targetPlayer.Character then
+            player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Player not found!",
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+        end
+    end
+})
+
+-- Fungsi untuk mengikuti pemain
+local function follow(targetPlayer)
+    if targetPlayer and targetPlayer.Character then
+        local humanoidRootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            player.Character.HumanoidRootPart.CFrame = humanoidRootPart.CFrame
+        end
+    end
+end
+
+-- Butang untuk mengikuti pemain
+TabMain:AddButton({
+    Name = "Follow Player",
+    Callback = function()
+        followPlayer = game.Players:FindFirstChild(userNameInput)
+        if followPlayer then
+            while followPlayer do
+                follow(followPlayer)
+                wait(0.1)
+            end
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Player not found!",
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+        end
+    end
+})
+
+-- Fungsi untuk fling
+local function fling(targetPlayer, speed)
+    local character = targetPlayer.Character
+    if character then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.Velocity = (humanoidRootPart.Position - player.Character.HumanoidRootPart.Position).unit * speed
+        end
+    end
+end
+
+-- Butang untuk fling pemain
+TabMain:AddButton({
+    Name = "Fling Player",
+    Callback = function()
+        local targetPlayer = game.Players:FindFirstChild(userNameInput)
+        if targetPlayer then
+            fling(targetPlayer, 100)  -- Boleh ubah nilai speed di sini
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Player not found!",
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+        end
+    end
+})
+
+-- Fungsi ESP
+local function toggleESP()
+    espEnabled = not espEnabled
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer then
+            if espEnabled then
+                local highlight = Instance.new("Highlight")
+                highlight.Parent = player.Character or player:WaitForChild("Character")
+                highlight.FillColor = Color3.new(1, 0, 0) -- Warna merah
+                highlight.OutlineColor = Color3.new(0, 0, 0) -- Warna hitam
+            else
+                for _, highlight in ipairs(player.Character:GetChildren()) do
+                    if highlight:IsA("Highlight") then
+                        highlight:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Butang untuk mengaktifkan/mematikan ESP
+TabMain:AddButton({
+    Name = "Toggle ESP",
+    Callback = function()
+        toggleESP()
+    end
+})
+
+-- Fungsi untuk copy player ID
+local function copyPlayerId()
+    local targetPlayer = game.Players:FindFirstChild(userNameInput)
+    if targetPlayer then
+        setclipboard(targetPlayer.UserId)
+        OrionLib:MakeNotification({
+            Name = "Copied!",
+            Content = "Player ID copied to clipboard.",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    else
+        OrionLib:MakeNotification({
+            Name = "Error",
+            Content = "Player not found!",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+end
+
+-- Butang untuk copy player ID
+TabMain:AddButton({
+    Name = "Copy Player ID",
+    Callback = function()
+        copyPlayerId()
+    end
+})
+
+-- Fungsi untuk mendapatkan status game
+local function getGameStatus()
+    local gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    OrionLib:MakeNotification({
+        Name = "Game Name",
+        Content = "You are playing: " .. gameName,
+        Image = "rbxassetid://4483345998",
+        Time = 5
+    })
+end
+
+-- Butang untuk mendapatkan status game
+TabMain:AddButton({
+    Name = "Get Game Status",
+    Callback = function()
+        getGameStatus()
+    end
+})
+
+-- Fungsi untuk sit
+local function sit()
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Sit = true
+        end
+    end
+end
+
+-- Butang untuk sit
+TabMain:AddButton({
+    Name = "Sit",
+    Callback = function()
+        sit()
+    end
+})
+
+-- Fungsi untuk reset
+local function resetCharacter()
+    player.Character:BreakJoints()
+end
+
+-- Butang untuk reset
+TabMain:AddButton({
+    Name = "Reset Character",
+    Callback = function()
+        resetCharacter()
+    end
+})
+
+-- Fungsi untuk RSPY
+local function loadSimpleSpy()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpySource.lua"))()
+end
+
+-- Butang untuk memuatkan RSPY
+TabMain:AddButton({
+    Name = "Load RSPY",
+    Callback = function()
+        loadSimpleSpy()
+    end
+})
